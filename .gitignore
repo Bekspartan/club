@@ -1,0 +1,20 @@
+# Node
+node_modules/
+.env
+package-lock.json
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+build/
+dist/
+
+# React
+frontend/node_modules/
+frontend/build/
