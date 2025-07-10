@@ -1,45 +1,55 @@
-// server/routes/documents.js
+// backend/routes/documents.js
 const express = require("express");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 const router = express.Router();
+const db = require("../db");
 
-const uploadDir = path.join(__dirname, "../uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-
-const storage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, uploadDir),
-  filename: (_, file, cb) => cb(null, Date.now() + "-" + file.originalname),
-});
-const upload = multer({ storage });
-
-let documents = [];
-
-router.post("/upload", upload.single("file"), (req, res) => {
-  const file = req.file;
-  if (!file) return res.status(400).send("No file uploaded");
-
-  const doc = {
-    id: Date.now(),
-    name: file.originalname,
-    path: file.filename,
-    uploadedAt: new Date().toISOString(),
-  };
-  documents.push(doc);
-  res.status(201).json(doc);
+// GET all documents
+router.get("/", async (req, res) => {
+  try {
+    const result = await db.query("SELECT * FROM Documents ORDER BY CreatedAt DESC");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch documents." });
+  }
 });
 
-router.get("/", (req, res) => {
-  res.json(documents);
+// POST new document
+router.post("/", async (req, res) => {
+  const { title, content, author } = req.body;
+  try {
+    await db.query(
+      "INSERT INTO Documents (Title, Content, Author, CreatedAt) VALUES (@title, @content, @author, GETDATE())",
+      { title, content, author }
+    );
+    res.json({ message: "✅ Document saved" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to save document." });
+  }
 });
 
-router.get("/download/:filename", (req, res) => {
-  const filePath = path.join(uploadDir, req.params.filename);
-  if (fs.existsSync(filePath)) {
-    res.download(filePath);
-  } else {
-    res.status(404).send("File not found");
+// PUT update document
+router.put("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { title, content } = req.body;
+  try {
+    await db.query(
+      "UPDATE Documents SET Title=@title, Content=@content WHERE DocumentID=@id",
+      { id, title, content }
+    );
+    res.json({ message: "✅ Document updated" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update document." });
+  }
+});
+
+// DELETE document
+router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.query("DELETE FROM Documents WHERE DocumentID=@id", { id });
+    res.json({ message: "✅ Document deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete document." });
   }
 });
 
